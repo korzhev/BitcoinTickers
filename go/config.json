@@ -1,0 +1,30 @@
+{
+  "bitcoinTickers": {
+    "BlockchainInfo": {
+      "name": "BlockchainInfo",
+      "url": "https://blockchain.info/ru/ticker",
+      "interval": 21000,
+      "expireTime": 60000
+    },
+    "CoindeskCom": {
+      "name": "CoindeskCom",
+      "url": "http://api.coindesk.com/v1/bpi/currentprice.json",
+      "interval": 13000,
+      "expireTime": 60000
+    }
+},
+  "exchangeTickers": {
+    "OpenexchangeratesOrg": {
+      "name": "OpenexchangeratesOrg",
+      "url": "https://openexchangerates.org/api/latest.json?app_id=b8076070b3ea4bd093f9ecfc222411d1",
+      "interval": 14000,
+      "expireTime": 60000
+    },
+    "FixerIo": {
+      "name": "FixerIo",
+      "url": "http://api.fixer.io/latest",
+      "interval": 18000,
+      "expireTime": 60000
+    }
+  }
+}

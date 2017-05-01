@@ -1,0 +1,12 @@
+{
+  "extends": "airbnb-base",
+  "rules": {
+    "no-underscore-dangle": [2, { "allowAfterThis": true }],
+    "no-console": ["error", { "allow": ["info", "warn", "error"] }],
+    "indent": ["error", 4],
+    "radix": ["error", "as-needed"],
+    "strict": [0, "global"],
+    "max-len": ["error", 80],
+    "no-plusplus": 0
+  }
+}
