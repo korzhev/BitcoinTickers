@@ -32,70 +32,141 @@ type CoindeskJson struct {
 	}
 }
 
-type AbctractTicker struct {
+type FixerIoJson struct {
+	Rates struct {
+		Usd	float32
+	}
+}
+type OpenexchangeJson struct {
+	Rates struct {
+		Eur	float32
+	}
+}
+
+type AbstractTicker struct {
 	Name            string
 	url             string
 	Active          bool
 	expireTime      time.Duration
 	requestInterval time.Duration
-	LastData        AbstractBitcoinExchange
 	stopChan        chan bool
+	resultChan	chan bool
+	LastSuccessReq  time.Time
+}
+
+type AbstractBitcoinTicker struct {
+	AbstractTicker
+	LastData        AbstractBitcoinExchange
+	JsonStruct	interface{}
+}
+
+type AbstractExchangeTicker struct {
+	AbstractTicker
+	LastData        float32
 	LastSuccessReq  time.Time
 }
 
 type BlockchainTicker struct {
-	AbctractTicker
+	AbstractBitcoinTicker
+	JsonStruct	BlockchainJson
 }
 
-func (at AbctractTicker) Parse()  {
+type CoindeskTicker struct {
+	AbstractBitcoinTicker
+	JsonStruct	CoindeskJson
+}
+
+type FixerIoExchangeTicker struct {
+	AbstractExchangeTicker
+	JsonStruct	FixerIoJson
+}
+
+type OpenexchangeTicker struct {
+	AbstractExchangeTicker
+	JsonStruct	OpenexchangeJson
+}
+
+type AbstractTickerInterface interface {
+	makeRequest(url string) (*json.Decoder, error)
+	schedule(func(), time.Duration) (chan bool)
+	Parse()
+	Start()
+	Stop()
+}
+
+func (at AbstractBitcoinTicker) Parse()  {
 	log.Fatalf(".Parse() not implemented at " + at.Name)
 }
 
-func (at AbctractTicker) Stop()  {
+func (at AbstractBitcoinTicker) Start() {
+	at.schedule()
+}
+
+func (at AbstractBitcoinTicker) Stop()  {
 	at.stopChan <- true
 }
 
-func (at AbctractTicker) makeRequest(url string) (*json.Decoder, error) {
-	response, err := http.Get(url)
+func (at AbstractBitcoinTicker) makeRequest() {
+	response, err := http.Get(at.url)
 	if err != nil {
-		return nil, err
-	} else {
-		defer response.Body.Close()
-		decoder := json.NewDecoder(response.Body)
-		return decoder, nil
+		at.Active = false
+		//log.Fatal(err)
+		at.resultChan <- false
+		return
 	}
+	defer response.Body.Close()
+	decoder := json.NewDecoder(response.Body)
+
+	errD := decoder.Decode(at.JsonStruct)
+	if errD != nil {
+		at.Active = false
+		//log.Fatal(errD)
+		at.resultChan <- false
+		return
+	}
+	at.LastSuccessReq = time.Now()
+	at.Active = true
 }
 
-func (at AbctractTicker) schedule(function func(), delay time.Duration) (chan bool) {
+func (at AbstractBitcoinTicker) getData() {
+	at.makeRequest()
+	at.Parse()
+}
+
+func (at AbstractBitcoinTicker) schedule() {
 	at.stopChan = make(chan bool)
 	go func() {
 		for {
-			function()
+			at.getData()
 			select {
-			case <-time.After(delay):
+			case <-time.After(at.requestInterval):
 			case <-at.stopChan:
 				return
 			}
 		}
 	}()
-	return at.stopChan
 }
 
-func (bt BlockchainTicker) Parse(decoder *json.Decoder) {
-	jsonData := new(BlockchainJson)
-	err := decoder.Decode(&jsonData)
-	if err != nil {
-		log.Fatal(err)
+func (bt BlockchainTicker) Parse() {
+	bt.LastData = AbstractBitcoinExchange{
+		Usd: bt.JsonStruct.Usd.Sell,
+		Eur:bt.JsonStruct.Eur.Sell,
 	}
-	bt.LastSuccessReq = time.Now()
-	bt.LastData = AbstractBitcoinExchange{Usd: jsonData.Usd.Sell, Eur:jsonData.Eur.Sell }
 }
 
-type AbstractTickerInterface interface {
-	MakeRequest(url string) (*json.Decoder, error)
-	Parse()
-	//Parse() (map[string]float32)
+func (ct CoindeskTicker) Parse() {
+	ct.LastData = AbstractBitcoinExchange{
+		Usd: ct.JsonStruct.Bpi.Usd.RateFloat,
+		Eur: ct.JsonStruct.Bpi.Eur.RateFloat,
+	}
 }
 
+func (ft FixerIoExchangeTicker) Parse() {
+	ft.LastData = ft.JsonStruct.Rates.Usd
+}
+
+func (ot OpenexchangeTicker) Parse() {
+	ot.LastData = 1 / ot.JsonStruct.Rates.Eur
+}
 
 
