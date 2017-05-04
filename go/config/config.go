@@ -29,7 +29,7 @@ type Configuration struct {
 }
 
 func GetConf() *Configuration {
-	file, errF := os.Open("config.json")
+	file, errF := os.Open("./go/config.json")
 	defer file.Close()
 	if errF != nil {
 		log.Panic(errF)
