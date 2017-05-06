@@ -3,18 +3,18 @@
     "BlockchainInfo": {
       "name": "BlockchainInfo",
       "url": "https://blockchain.info/ru/ticker",
-      "interval": 21,
+      "interval": 12,
       "expireTime": 60
     },
     "CoindeskCom": {
       "name": "CoindeskCom",
       "url": "http://api.coindesk.com/v1/bpi/currentprice.json",
-      "interval": 13,
+      "interval": 23,
       "expireTime": 60
     }
 },
   "exchangeTickers": {
-    "OpenexchangeratesOrg": {
+    "Openexchange": {
       "name": "OpenexchangeratesOrg",
       "url": "https://openexchangerates.org/api/latest.json?app_id=b8076070b3ea4bd093f9ecfc222411d1",
       "interval": 14,

@@ -7,25 +7,25 @@ import (
 )
 
 type AbstractConfig struct {
-	Name		string
-	Url 		string
-	Interval	int
-	ExpireSeconds	int
+	Name       string
+	Url        string
+	Interval   int
+	ExpireTime int
 }
 
 type BitckoinTickersConfig struct {
-	BlockchainInfo	AbstractConfig
-	CoindeskCom	AbstractConfig
+	BlockchainInfo AbstractConfig
+	CoindeskCom    AbstractConfig
 }
 
 type ExchangeTickersConfig struct {
-	FixerIo		AbstractConfig
-	Openexchange	AbstractConfig
+	FixerIo      AbstractConfig
+	Openexchange AbstractConfig
 }
 
 type Configuration struct {
-	BitcoinTickers	BitckoinTickersConfig
-	ExchangeTickers	ExchangeTickersConfig
+	BitcoinTickers  BitckoinTickersConfig
+	ExchangeTickers ExchangeTickersConfig
 }
 
 func GetConf() *Configuration {

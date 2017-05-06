@@ -2,27 +2,26 @@ package tickers
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"time"
 )
 
 type AbstractBitcoinExchange struct {
-	Usd	float32
-	Eur	float32
+	Usd float32
+	Eur float32
 }
 
 type BlockchainJson struct {
 	Usd struct {
-		Sell	float32
+		Sell float32
 	}
 	Eur struct {
-		Sell	float32
+		Sell float32
 	}
 }
 
 type CoindeskJson struct {
-	Bpi	struct {
+	Bpi struct {
 		Usd struct {
 			RateFloat float32
 		}
@@ -34,17 +33,13 @@ type CoindeskJson struct {
 
 type FixerIoJson struct {
 	Rates struct {
-		Usd	float32
+		Usd float32
 	}
 }
 type OpenexchangeJson struct {
 	Rates struct {
-		Eur	float32
+		Eur float32
 	}
-}
-
-type ATInterface interface {
-	Parse()
 }
 
 type AbstractTicker struct {
@@ -53,126 +48,94 @@ type AbstractTicker struct {
 	Active          bool
 	ExpireTime      time.Duration
 	RequestInterval time.Duration
-	StopChan        chan bool
-	ResultChan      *chan bool
+	requestTicker   *time.Ticker
+	ResultChan      chan bool
 	LastSuccessReq  time.Time
-	JsonStruct	interface{}
+	JsonStruct      interface{}
+	Parse           func(interface{}) map[string]float32
 }
 
 type AbstractBitcoinTicker struct {
 	AbstractTicker
-	LastData        AbstractBitcoinExchange
 }
 
 type AbstractExchangeTicker struct {
 	AbstractTicker
-	LastData        float32
-}
-
-type BlockchainTicker struct {
-	AbstractBitcoinTicker
-	JsonStruct	BlockchainJson
-}
-
-type CoindeskTicker struct {
-	AbstractBitcoinTicker
-	JsonStruct	CoindeskJson
-}
-
-type FixerIoExchangeTicker struct {
-	AbstractExchangeTicker
-	JsonStruct	FixerIoJson
-}
-
-type OpenexchangeTicker struct {
-	AbstractExchangeTicker
-	JsonStruct	OpenexchangeJson
 }
 
 type AbstractTickerInterface interface {
-	makeRequest() ()
-	schedule() ()
-	Parse()
+	makeRequest()
+	schedule()
 	Start()
+	Parse()
 	Stop()
 }
-func Parse (ati AbstractTickerInterface) {
-	return ati.Parse()
-}
 
-func (at AbstractTicker) Parse()  {
-	log.Print(at)
-}
-
-func (at AbstractTicker) Start() {
+func (at *AbstractTicker) Start() {
 	at.schedule()
+	go at.makeRequest()
 }
 
-func (at AbstractTicker) Stop()  {
-	at.StopChan <- true
+func (at *AbstractTicker) Stop() {
+	at.requestTicker.Stop()
 }
 
-func (at AbstractTicker) makeRequest() {
+func (at *AbstractTicker) makeRequest() {
 	response, err := http.Get(at.Url)
+	defer response.Body.Close()
+
 	if err != nil {
 		at.Active = false
 		//log.Fatal(err)
-		*at.ResultChan <- false
+		at.ResultChan <- false
 		return
 	}
-	defer response.Body.Close()
 	decoder := json.NewDecoder(response.Body)
 
 	errD := decoder.Decode(at.JsonStruct)
 	if errD != nil {
 		at.Active = false
-		//log.Fatal(errD)
-		*at.ResultChan <- false
+		at.ResultChan <- false
 		return
 	}
 	at.LastSuccessReq = time.Now()
 	at.Active = true
+	at.ResultChan <- true
 }
 
-func (at AbstractTicker) getData() {
-	at.makeRequest()
-	at.Parse()
-}
-
-func (at AbstractTicker) schedule() {
-	at.StopChan = make(chan bool)
+func (at *AbstractTicker) schedule() {
+	at.requestTicker = time.NewTicker(at.RequestInterval)
 	go func() {
-		for {
-			at.getData()
-			select {
-			case <-time.After(at.RequestInterval):
-			case <-at.StopChan:
-				return
-			}
+		for t := range at.requestTicker.C {
+			_ = t
+			at.makeRequest()
 		}
 	}()
 }
 
-func (bt BlockchainTicker) Parse() {
-	bt.LastData = AbstractBitcoinExchange{
-		Usd: 	bt.JsonStruct.Usd.Sell,
-		Eur: 	bt.JsonStruct.Eur.Sell,
+func BlockchainTickerParse(data interface{}) map[string]float32 {
+
+	return map[string]float32{
+		"USD": data.(*BlockchainJson).Usd.Sell,
+		"EUR": data.(*BlockchainJson).Eur.Sell,
 	}
 }
 
-func (ct CoindeskTicker) Parse() {
-	ct.LastData = AbstractBitcoinExchange{
-		Usd: 	ct.JsonStruct.Bpi.Usd.RateFloat,
-		Eur: 	ct.JsonStruct.Bpi.Eur.RateFloat,
+func CoindeskTickerParse(data interface{}) map[string]float32 {
+	return map[string]float32{
+		"USD": data.(*CoindeskJson).Bpi.Usd.RateFloat,
+		"EUR": data.(*CoindeskJson).Bpi.Eur.RateFloat,
 	}
 }
 
-func (ft FixerIoExchangeTicker) Parse() {
-	ft.LastData = ft.JsonStruct.Rates.Usd
+func FixerIoExchangeTickerParse(data interface{}) map[string]float32 {
+	return map[string]float32{
+		"EUR/USD": data.(*FixerIoJson).Rates.Usd,
+	}
 }
 
-func (ot OpenexchangeTicker) Parse() {
-	ot.LastData = 1 / ot.JsonStruct.Rates.Eur
+func OpenexchangeTickerParse(data interface{}) map[string]float32 {
+	return map[string]float32{
+		"EUR/USD": 1 / data.(*OpenexchangeJson).Rates.Eur,
+	}
 }
-
-
